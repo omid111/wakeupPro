@@ -1,6 +1,6 @@
 wakeupPro
 =========
-Alarm clock in Python.
+Alarm clock in Python by void-.
 
 Given a time, calculate the difference between now and that time. Wait until
 that time, then activate an alarm. To deactivate the alarm, the user must
