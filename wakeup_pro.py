@@ -25,7 +25,7 @@ class Alarm(object):
     wakeupTime datetime object for when the alarm is set to go off.
     acclimate boolean indicating if the alarm should make acclamitory beeps.
     _beeper Beeper instance for beeping on a separate thread.
-    _dict python dictionary with words from DICT_PATH.
+    _dict python array with words from DICT_PATH.
 
   """
 
