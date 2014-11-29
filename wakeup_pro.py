@@ -1,8 +1,62 @@
 from sys import argv
-from os import system
 from time import sleep, strptime
 from random import randint, choice
 import threading, datetime
+import urllib
+import os
+
+#Global Variables
+#SETTINGS_PATH path for the .alarmsettings file
+SETTINGS_PATH = "./.alarmsettings"
+#DICT_PATH path for the dictionary used for the deactivation code.
+DICT_PATH = ""
+#SOUND_PATH path for the alarm alert sound clip
+SOUND_PATH = ""
+
+def initialize(dp="", sp=0, sfile = "message.ogg"):
+  """Initialization method, reads path values for:
+  - DICT_PATH
+  from .alarmsettings file. If the file doesn't exist, then create a new 
+  .alarmsettings file.
+  """
+  global DICT_PATH, SOUND_PATH
+  sounds = ["message.ogg","drip.ogg","glass.ogg"]
+
+  try:
+    settingsfile = open(SETTINGS_PATH, "r")
+    for line in settingsfile:
+      if("DICT_PATH" == line[0:9]):
+        DICT_PATH = line[11:-1]
+      elif("SOUND_PATH" == line[0:10]):
+        SOUND_PATH = line [12:-1]
+    if DICT_PATH == "" or SOUND_PATH == "":
+      os.remove(SETTINGS_PATH)
+      print("Error. Please run program again.")
+      exit(1)
+  except IOError:
+    print "First Time Initialization..."
+    settingsfile = open(SETTINGS_PATH, "wb")
+    for dictn in [dp,"/etc/dictionaries-common/words",\
+                  "/usr/share/dict/words","words"]:
+      if(os.path.isfile(dictn)):
+        DICT_PATH = dictn
+        settingsfile.write("DICT_PATH: " + DICT_PATH + "\n")
+        break;
+    for sound in [sfile, sounds[sp], \
+                  "/usr/share/sounds/ubuntu/stereo/message.ogg"] + sounds:
+      if(os.path.isfile(sound)):
+        SOUND_PATH = sound
+        settingsfile.write("SOUND_PATH: " + SOUND_PATH + "\n")
+        break;
+    if DICT_PATH == "":
+      print "You don't have /usr/share/dict/words file, downloading and"+ \
+              "placing in current directory"
+      wf = urllib.URLopener()
+      wf.retrieve("http://www.cs.duke.edu/~ola/ap/linuxwords", "words")
+      DICT_PATH = "./words"
+      settingsfile.write("DICT_PATH: " + DICT_PATH + "\n")
+
+  settingsfile.close()
 
 class Alarm(object):
   """Alarm object that, given a time to wakeup, can sleep and then beep.
@@ -19,7 +73,6 @@ class Alarm(object):
     BEEP_INTERVAL number of seconds between alarm beeps beeps.
     CODE_LENGTH tuple defining a lower and upper bounds for the code length.
     LOG_PATH path for the log file.
-    DICT_PATH path for the dictionary used for the deactivation code.
 
   Member Variables:
     wakeupTime datetime object for when the alarm is set to go off.
@@ -29,17 +82,16 @@ class Alarm(object):
 
   """
 
-  SLEEP_MSG = ("Sweet Dreams","Goodnight")
+  SLEEP_MSG = ("Sweet Dreams","Goodnight","Night","gn")
   INCORRECT_MSG = "incorrect input"
   SHUTOFF_MSG = "Enter the following to terminate alarm:"
-  ANTI_COPY_MSG = " "
+  ANTI_COPY_MSG = "_"
   ACCLIMATE_LENGTH = 5 * 60
   ACCELERATE_BEEPS = 10
   ACCELERATE_TIME = 1 * 60 * 60
   BEEP_INTERVAL = 1
   CODE_LENGTH = (4,8)
   LOG_PATH = "./.sleeplog"
-  DICT_PATH = "/etc/dictionaries-common/words"
 
   def __init__(self, wakeupTime, acclimate=False, accelerate=False):
     """Initialize an Alarm given wakeup time and optional acclimate boolean."""
@@ -59,8 +111,9 @@ class Alarm(object):
     This method may need to be adjusted depending upon the system.
 
     """
-    system("paplay /usr/share/sounds/ubuntu/stereo/message.ogg");
-    #system("beep %s -e /dev/input/by-path/platform-pcspkr-event-spkr" % \
+    os.system("paplay "+SOUND_PATH);
+    #os.system("paplay /usr/share/sounds/ubuntu/stereo/message.ogg");
+    #os.system("beep %s -e /dev/input/by-path/platform-pcspkr-event-spkr" % \
     #  ("" if (frequency == -1) else ("-f %i" %frequency)))
 
   @staticmethod
@@ -88,7 +141,7 @@ class Alarm(object):
   def loadDict(self):
     """Load all entries from DICT_PATH into _dict and remove newlines."""
 
-    with file(self.DICT_PATH, "r") as f:
+    with file(DICT_PATH, "r") as f:
       i = 0
       for line in f.readlines():
         self._dict[i] = line.rstrip("\n")
@@ -137,8 +190,11 @@ class Alarm(object):
     stopCode = " ".join(self._dict[randint(0, len(self._dict))-1] \
       for _ in xrange(randint(*self.CODE_LENGTH)))
 
+    printCode = self.ANTI_COPY_MSG.join(stopCode.split(" "))
+
     print self.SHUTOFF_MSG
-    while raw_input("%s  %s\n  "%(stopCode, self.ANTI_COPY_MSG)) != stopCode:
+    print stopCode
+    while raw_input("%s  %s\n  "%(printCode, self.ANTI_COPY_MSG)) != stopCode:
       print(self.INCORRECT_MSG)
     self.stopBeeps()
     stop = datetime.datetime.today()
@@ -181,12 +237,33 @@ class Alarm(object):
     If given as an argument, create the alarm to make acclamitory beeps.
 
     """
-    acclimate = ("-a" in argv)
-    accelerate = ("-x" in argv)
+    #Go through arguments, make sure they are all valid
+    acclimate = accelerate = False
+    timeindex = -1
+    if("-s" not in argv):
+      initialize()
+    for i in xrange(len(argv)):
+      if argv[i][0] == '-':
+        for op in argv[i][1:]:
+          if op == 'a':
+            acclimate = True
+          elif op == 'x':
+            accelerate = True
+          elif op == 's':
+            os.remove(".alarmsettings")
+            i += 1
+            try:
+              initialize(sp=int(argv[i]))
+            except ValueError:
+              intialize(sfile=argv[i])
+          else:
+            print "Unknown option -" + op
+      elif ':' in argv[i]:
+        timeindex = i
 
     #Create a timestruct from user input if no argument was given
     timestruct = strptime((raw_input("Enter wakeup time in the format:" \
-      " HH:MM ") if len(argv) < 2 else argv[1]),"%H:%M")
+      " HH:MM ") if timeindex == -1 else argv[timeindex]),"%H:%M")
 
     today = datetime.datetime.today()
     time = datetime.datetime(today.year, today.month, today.day, \
