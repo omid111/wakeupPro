@@ -13,7 +13,7 @@ DICT_PATH = ""
 #SOUND_PATH path for the alarm alert sound clip
 SOUND_PATH = ""
 
-def initialize(dp="", sp=0, sfile = "message.ogg"):
+def initialize(dp="", sp=0, sfile=""):
   """Initialization method, reads path values for:
   - DICT_PATH
   from .alarmsettings file. If the file doesn't exist, then create a new 
@@ -34,7 +34,6 @@ def initialize(dp="", sp=0, sfile = "message.ogg"):
       print("Error. Please run program again.")
       exit(1)
   except IOError:
-    print "First Time Initialization..."
     settingsfile = open(SETTINGS_PATH, "wb")
     for dictn in [dp,"/etc/dictionaries-common/words",\
                   "/usr/share/dict/words","words"]:
@@ -45,6 +44,7 @@ def initialize(dp="", sp=0, sfile = "message.ogg"):
     for sound in [sfile, sounds[sp], \
                   "/usr/share/sounds/ubuntu/stereo/message.ogg"] + sounds:
       if(os.path.isfile(sound)):
+        print sound
         SOUND_PATH = sound
         settingsfile.write("SOUND_PATH: " + SOUND_PATH + "\n")
         break;
@@ -193,7 +193,6 @@ class Alarm(object):
     printCode = self.ANTI_COPY_MSG.join(stopCode.split(" "))
 
     print self.SHUTOFF_MSG
-    print stopCode
     while raw_input("%s  %s\n  "%(printCode, self.ANTI_COPY_MSG)) != stopCode:
       print(self.INCORRECT_MSG)
     self.stopBeeps()
@@ -253,6 +252,7 @@ class Alarm(object):
             os.remove(".alarmsettings")
             i += 1
             try:
+              print argv[i]
               initialize(sp=int(argv[i]))
             except ValueError:
               intialize(sfile=argv[i])
