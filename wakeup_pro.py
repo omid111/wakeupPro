@@ -44,7 +44,6 @@ def initialize(dp="", sp=0, sfile=""):
     for sound in [sfile, sounds[sp], \
                   "/usr/share/sounds/ubuntu/stereo/message.ogg"] + sounds:
       if(os.path.isfile(sound)):
-        print sound
         SOUND_PATH = sound
         settingsfile.write("SOUND_PATH: " + SOUND_PATH + "\n")
         break;
@@ -252,7 +251,6 @@ class Alarm(object):
             os.remove(".alarmsettings")
             i += 1
             try:
-              print argv[i]
               initialize(sp=int(argv[i]))
             except ValueError:
               intialize(sfile=argv[i])
